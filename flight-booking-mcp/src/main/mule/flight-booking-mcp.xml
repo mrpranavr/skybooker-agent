@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mcp http://www.mulesoft.org/schema/mule/mcp/current/mule-mcp.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<flow name="searchFlightsFlow" doc:id="3f742995-36b9-43e5-a1a5-c36fb6dca434" >
+		<mcp:tool-listener doc:name="MCP Server - Tool Listener" doc:id="680d081d-3aed-4c1a-b526-4faa65889109" config-ref="MCP_Server" name="search_flights">
+			<mcp:description ><![CDATA[Search mock flights by origin, destination and date. Returns only flights with seats available.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+      "type": "object",
+      "properties": {
+        "origin": { "type": "string", "description": "Origin airport code, e.g. COK" },
+        "destination": { "type": "string", "description": "Destination airport code, e.g. DEL" },
+        "date": { "type": "string", "description": "Travel date, format YYYY-MM-DD" }
+      },
+      "required": ["origin", "destination", "date"]
+    }]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[write(payload, 'application/json')]" />
+			</mcp:responses>
+
+		</mcp:tool-listener>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="72654570-2a9f-461b-a548-b2b9acb5e459" variableName="searchParams"/>
+		<flow-ref doc:name="loadMockFlights" doc:id="da49efd2-7082-42fe-afc3-5486653ced8a" name="loadMockFlights"/>
+		<ee:transform doc:name="Transform Message" doc:id="20682ce5-ccdd-411b-a095-bfea5dab8bd9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var params = vars.searchParams
+---
+payload filter (f) -> 
+	f.origin == params.origin
+	and f.destination == params.destination
+	and f.date == params.date
+	and f.seatsAvailable > 0
+	]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<sub-flow name="loadMockFlights" doc:id="418f7b64-3d21-441a-97e7-8cd2994e299e" >
+		<ee:transform doc:name="Transform Message" doc:id="e4d36612-4a41-4d97-ae1e-62f42f38e3f6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[
+  { flightId: "SB101", airline: "IndiGo", origin: "COK", destination: "DEL", date: "2026-12-15", departure: "06:00", arrival: "08:45", price: 5200, seatsAvailable: 4 },
+  { flightId: "SB102", airline: "Air India", origin: "COK", destination: "DEL", date: "2026-12-15", departure: "11:30", arrival: "14:20", price: 6100, seatsAvailable: 2 },
+  { flightId: "SB103", airline: "Vistara", origin: "COK", destination: "DEL", date: "2026-12-15", departure: "18:00", arrival: "20:50", price: 7300, seatsAvailable: 6 },
+  { flightId: "SB201", airline: "IndiGo", origin: "DEL", destination: "BOM", date: "2026-12-20", departure: "07:15", arrival: "09:20", price: 4800, seatsAvailable: 3 },
+  { flightId: "SB202", airline: "SpiceJet", origin: "DEL", destination: "BOM", date: "2026-12-20", departure: "15:00", arrival: "17:05", price: 4300, seatsAvailable: 0 }
+]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<flow name="bookFlightsFlow" doc:id="15b7e167-325d-4eb0-9b30-ce3cbf6a40a5" >
+		<mcp:tool-listener doc:name="MCP Server - Tool Listener" doc:id="a65fb8be-7cd4-413c-a992-84e3c68afbfc" config-ref="MCP_Server" name="book_flight" >
+			<mcp:description ><![CDATA[Book a specific mock flight for a named passenger. Returns a bookingId on success.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+      "type": "object",
+      "properties": {
+        "flightId": { "type": "string", "description": "The flight ID to book, e.g. SB101" },
+        "passengerName": { "type": "string", "description": "Full name of the passenger" }
+      },
+      "required": ["flightId", "passengerName"]
+    }]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[write(payload, 'application/json')]" />
+			</mcp:responses>
+		</mcp:tool-listener>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="9240c4fb-56d8-4c4f-bef8-818bc1f3d1be" variableName="bookingRequest" />
+		<flow-ref doc:name="loadMockFlights" doc:id="24142076-b7d9-4569-8778-5301b7d27c75" name="loadMockFlights" />
+		<ee:transform doc:name="Transform Message" doc:id="a6ed76ee-b724-406a-b48c-f802153299be" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="flight" ><![CDATA[%dw 2.0
+output application/json
+---
+(payload filter (f) -> f.flightId == vars.bookingRequest.flightId)[0]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:retrieve doc:name="Retrieve" doc:id="0d36497e-e608-4327-84c4-768d6938ac26" key="#[vars.bookingRequest.flightId]" objectStore="Seats_Booked_Store" target="bookedCount">
+			<os:default-value ><![CDATA[#[0]]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="15824edc-b839-4bba-a1c6-9c8e23e1b16d" >
+			<when expression="#[vars.flight == null]">
+				<raise-error doc:name="Raise error" doc:id="af03808e-0a35-4bfc-81c3-e1bc025616d9" type="APP:FLIGHT_NOT_FOUND" description="No flight found with that ID"/>
+			</when>
+			<when expression="#[vars.flight.seatsAvailable - vars.bookedCount &lt;= 0]">
+				<raise-error doc:name="Raise error" doc:id="c0bf09e7-e246-4a5c-b449-9bc1066fd324" type="APP:NO_SEATS" description="No seats available on this flight" />
+			</when>
+			<otherwise >
+				<os:store doc:name="Store" doc:id="4fc406cf-fd16-4131-a06f-31644b90cf5e" key="#[vars.bookingRequest.flightId]" objectStore="Seats_Booked_Store">
+					<os:value ><![CDATA[#[vars.bookedCount + 1]]]></os:value>
+				</os:store>
+				<set-variable value='#[%dw 2.0&#10;output application/json&#10;---&#10;{&#10;  bookingId: correlationId,&#10;  flightId: vars.flight.flightId,&#10;  airline: vars.flight.airline,&#10;  origin: vars.flight.origin,&#10;  destination: vars.flight.destination,&#10;  date: vars.flight.date,&#10;  price: vars.flight.price,&#10;  passengerName: vars.bookingRequest.passengerName,&#10;  status: "CONFIRMED"&#10;}]' doc:name="Set Variable" doc:id="40032b79-6a0e-4401-bc34-6d5f0c7043ba" variableName="newBooking"/>
+				<os:retrieve doc:name="Retrieve" doc:id="2dd0f55c-34c3-456d-9f8a-c447db6064fa" key="#[vars.bookingRequest.passengerName]" objectStore="Bookings_Store" target="existingBookings">
+					<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+				</os:retrieve>
+				<ee:transform doc:name="Type Casting and merging bookings" doc:id="cf9064cc-aedd-4aad-b63f-3cbe682bde07">
+					<ee:message>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="updatedBookings" ><![CDATA[%dw 2.0
+output application/json
+---
+(vars.existingBookings as Array) ++ [vars.newBooking]]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<os:store doc:name="Store" doc:id="8e5c2e7f-57d8-478c-bb75-a177434a2901" key="#[vars.bookingRequest.passengerName]" objectStore="Bookings_Store">
+					<os:value ><![CDATA[#[vars.updatedBookings]]]></os:value>
+				</os:store>
+				<ee:transform doc:name="Transform Message" doc:id="5be5529d-5a13-4e7b-94c1-611afefa9b7e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.newBooking]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="listBookingsFlow" doc:id="da02578a-355f-40f0-bf7d-2c11fd4946b8" >
+		<mcp:tool-listener doc:name="MCP Server - Tool Listener" doc:id="ecb1179c-a6b3-410c-a430-82c1ceaf0252" config-ref="MCP_Server" name="list_bookings" >
+			<mcp:description ><![CDATA[List all mock bookings previously made by a given passenger name.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+      "type": "object",
+      "properties": {
+        "passengerName": { "type": "string", "description": "Full name of the passenger" }
+      },
+      "required": ["passengerName"]
+    }]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[write(payload, 'application/json')]" />
+			</mcp:responses>
+		</mcp:tool-listener>
+		<os:retrieve doc:name="Retrieve" doc:id="5f309b58-d422-4919-abd3-59e89489f96a" key="#[payload.passengerName]" objectStore="Bookings_Store" target="bookings">
+			<os:default-value ><![CDATA[#[[]]]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="Transform Message" doc:id="fd8d2951-b862-413e-a0f2-470e0d49b433">
+			<ee:message>
+				<ee:set-payload><![CDATA[vars.bookings]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="searchHotelsFlow" doc:id="25da466b-baf2-4660-bec5-2e9ac0e62bbb" >
+		<mcp:tool-listener doc:name="MCP Server - Tool Listener" doc:id="9324fd32-0ca5-45c9-b482-46d7a05a7d8c" config-ref="MCP_Server" name="search_hotels" >
+			<mcp:description ><![CDATA[Search mock hotels by city code (DEL or BOM), check-in date (YYYY-MM-DD) and number of nights. Returns hotels with rooms available, including the stay total.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+      "type": "object",
+      "properties": {
+        "city": { "type": "string", "description": "City code: DEL or BOM" },
+        "checkIn": { "type": "string", "description": "Check-in date, YYYY-MM-DD" },
+        "nights": { "type": "string", "description": "Number of nights, e.g. 5" }
+      },
+      "required": ["city", "checkIn", "nights"]
+    }]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[write(payload, 'application/json')]" />
+			</mcp:responses>
+		</mcp:tool-listener>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="90d79a61-0bdb-48b0-867a-310d485974ac" variableName="searchParams" />
+		<flow-ref doc:name="loadMockHotels" doc:id="34b19d8b-0c0e-4447-91d2-3c1553ab5ce0" name="loadMockHotels" />
+		<ee:transform doc:name="Transform Message" doc:id="7feedde2-4bce-41d8-86bd-4c36cd12eaec" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var p = vars.searchParams
+var n = p.nights as Number
+---
+(payload filter (h) -> h.city == upper(p.city) and h.roomsAvailable > 0)
+  map (h) -> h ++ { checkIn: p.checkIn, nights: n, total: h.nightlyRate * n }
+	]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<sub-flow name="loadMockHotels" doc:id="cf0c50de-6793-4178-95bc-837d8d8e8241" >
+		<ee:transform doc:name="Transform Message" doc:id="da38f9f6-9080-485b-8310-b60e1a8aeae6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[
+  { hotelId: "H101", name: "Capital Grand", city: "DEL", stars: 5, nightlyRate: 9500,  roomsAvailable: 3 },
+  { hotelId: "H102", name: "Lotus Inn",     city: "DEL", stars: 4, nightlyRate: 5600,  roomsAvailable: 5 },
+  { hotelId: "H103", name: "Metro Stay",    city: "DEL", stars: 3, nightlyRate: 3800,  roomsAvailable: 8 },
+  { hotelId: "H201", name: "Marine Suites", city: "BOM", stars: 5, nightlyRate: 11000, roomsAvailable: 2 },
+  { hotelId: "H202", name: "Harbour View",  city: "BOM", stars: 4, nightlyRate: 6400,  roomsAvailable: 4 },
+  { hotelId: "H203", name: "Budget Bay",    city: "BOM", stars: 3, nightlyRate: 3200,  roomsAvailable: 6 }
+]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<flow name="bookHotelFlow" doc:id="f90a6b10-8a82-461f-a245-cf0fbcfa31b4" >
+		<mcp:tool-listener doc:name="MCP Server - Tool Listener" doc:id="1adf1308-ce79-4382-8e7c-73e10c2c5b1f" config-ref="MCP_Server" name="book_hotel" >
+			<mcp:description ><![CDATA[Book a specific mock hotel for a named guest. Returns a bookingId on success.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+      "type": "object",
+      "properties": {
+        "hotelId": { "type": "string", "description": "Hotel ID, e.g. H102" },
+        "guestName": { "type": "string", "description": "Full name of the guest" },
+        "checkIn": { "type": "string", "description": "Check-in date, YYYY-MM-DD" },
+        "nights": { "type": "string", "description": "Number of nights, e.g. 5" }
+      },
+      "required": ["hotelId", "guestName", "checkIn", "nights"]
+    }]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[write(payload, 'application/json')]" />
+			</mcp:responses>
+		</mcp:tool-listener>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="11712357-18e1-443b-9dd5-3a0d9de3ae52" variableName="bookingRequest" />
+		<flow-ref doc:name="loadMockHotels" doc:id="fdc579aa-61bf-4b53-b3d6-60ec7ecc1ce4" name="loadMockHotels" />
+		<ee:transform doc:name="Transform Message" doc:id="08a586f9-61ba-40da-9216-ee06ab9a80a6" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="flight" ><![CDATA[%dw 2.0
+output application/json
+---
+(payload filter (h) -> h.hotelId == vars.bookingRequest.hotelId)[0]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<os:retrieve doc:name="Retrieve" doc:id="07a4767b-462c-489e-bbed-d60c235253e9" key="#[vars.bookingRequest.hotelId]" objectStore="Rooms_Booked_Store" target="bookedCount" >
+			<os:default-value ><![CDATA[#[0]]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="76c3b494-ccac-492d-b908-a82d29e53c79" >
+			<when expression="#[vars.hotel == null]" >
+				<raise-error doc:name="Raise error" doc:id="b80ac356-76ba-47ed-aeca-351c378c2210" type="APP:HOTEL_NOT_FOUND" description="No hotel found with that ID" />
+			</when>
+			<when expression="#[vars.hotel.roomsAvailable - vars.bookedCount &lt;= 0]" >
+				<raise-error doc:name="Raise error" doc:id="a9bfd03b-f912-4301-b08d-cadba068c239" type="APP:NO_ROOMS" description="No rooms available on this hotel" />
+			</when>
+			<otherwise >
+				<os:store doc:name="Store" doc:id="4129348c-6c38-4ee8-954e-4c99c610833a" key="#[vars.bookingRequest.hotelId]" objectStore="Rooms_Booked_Store" >
+					<os:value ><![CDATA[#[vars.bookedCount + 1]]]></os:value>
+				</os:store>
+				<ee:transform doc:name="Transform Message" doc:id="73902b8d-a0a0-4040-bb52-b4249e82d44e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var n = vars.bookingRequest.nights as Number
+---
+{
+  bookingId: correlationId,
+  hotelId: vars.hotel.hotelId,
+  hotelName: vars.hotel.name,
+  city: vars.hotel.city,
+  checkIn: vars.bookingRequest.checkIn,
+  nights: n,
+  nightlyRate: vars.hotel.nightlyRate,
+  total: vars.hotel.nightlyRate * n,
+  guestName: vars.bookingRequest.guestName,
+  status: "CONFIRMED"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="getTravelPolicyFlow" doc:id="2dac73f7-2895-45f2-8b7b-5f9ea1842d47" >
+		<mcp:tool-listener doc:name="MCP Server - Tool Listener" doc:id="e4647589-aac1-412b-961e-94d83c8fc103" config-ref="MCP_Server" name="get_travel_policy" >
+			<mcp:description ><![CDATA[Returns the company travel policy limits used to review itineraries.]]></mcp:description>
+			<mcp:parameters-schema ><![CDATA[{
+      "type": "object",
+      "properties": {}
+    }]]></mcp:parameters-schema>
+			<mcp:responses >
+				<mcp:text-tool-response-content text="#[write(payload, 'application/json')]" />
+			</mcp:responses>
+		</mcp:tool-listener>
+		<ee:transform doc:name="Transform Message" doc:id="713eb36b-0d0e-445a-8613-36bebf253e9c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+  maxFlightFare: 6500,
+  maxHotelNightlyRate: 6000,
+  tripTotalApprovalThreshold: 30000,
+  currency: "INR"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

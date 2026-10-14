@@ -1,0 +1,91 @@
+# @dialect: AGENTFABRIC=1.2
+system:
+  instructions: "You are the Flight Agent, a specialist in flight search and booking."
+
+config:
+  agent_name: "skybooker"
+  default_llm: @llm.openai_main
+
+llm:
+  openai_main:
+    target: "llm://openai_connection"
+    kind: "OpenAI"
+    model: "gpt-5-mini"
+
+actions:
+  search_flights:
+    target: "mcp://flight_mcp_connection"
+    kind: "mcp:tool"
+    tool_name: "search_flights"
+    inputs:
+      origin: string
+      destination: string
+      passengerName: string
+
+  book_flight:
+    target: "mcp://flight_mcp_connection"
+    kind: "mcp:tool"
+    tool_name: "book_flight"
+    inputs:
+      flightId: string
+      passengerName: string
+
+  list_bookings:
+    target: "mcp://flight_mcp_connection"
+    kind: "mcp:tool"
+    tool_name: "list_bookings"
+    inputs:
+      passengerName: string
+
+trigger brokerTrigger:
+  kind: "a2a"
+  target: "brokers://skybooker/a2a"
+  on_message: ->
+    transition to @orchestrator.flightSpecialist
+
+orchestrator flightSpecialist:
+  description: "Finds and books flights on request from another agent."
+  label: "flightSpecialist"
+  system:
+    instructions: |
+      You are called by another agent (a coordinator), never by a human.
+      Do the work in a single pass. Never ask questions or wait for a reply.
+      If required details are missing, say exactly which ones are missing in your reply
+      so the coordinator can collect them.
+
+      SEARCH: needs origin, destination and date (YYYY-MM-DD).
+      Call search_flights and list up to 5 options, each with flightId, airline,
+      departure and arrival times, price, and seats left.
+      If there are no results, say so plainly.
+
+      BOOK: only when the message contains an explicit flightId and a passenger name
+      and clearly asks you to book. Call book_flight once and report the bookingId,
+      flightId, route, date and price. Never book on your own initiative or guess a flightId.
+
+      LIST: when asked for a passenger's bookings, call list_bookings and summarise them.
+
+      Never invent flights, prices, seat counts or booking IDs.
+      If a tool returns an error (for example no seats available), report it verbatim.
+      Reply in concise plain text, with no preamble.
+  reasoning:
+    instructions: ->
+      | {!@request.payload.message.parts[0].text}
+    actions:
+      search_flights: @actions.search_flights
+      book_flight: @actions.book_flight
+      list_bookings: @actions.list_bookings
+    max_number_of_loops: 20
+    max_consecutive_errors: 5
+    task_timeout_secs: 600
+    outputs:
+      properties:
+        summary:
+          type: "string"
+          description: "Plain-text result for the requesting agent"
+  on_exit: ->
+    transition to @echo.flightReply
+
+echo flightReply:
+  kind: "a2a:status_update_event"
+  state: "TASK_STATE_COMPLETED"
+  message: a2a.message({messageId: uuid(), parts: [a2a.textPart(@orchestrator.flightSpecialist.output.summary)]})

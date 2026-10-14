@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:mcp="http://www.mulesoft.org/schema/mule/mcp"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/mcp http://www.mulesoft.org/schema/mule/mcp/current/mule-mcp.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="5c5d9f0b-f3c2-4c2a-86af-0efa097f2b71" >
+		<http:listener-connection host="0.0.0.0" port="${https.port}" >
+		</http:listener-connection>
+	</http:listener-config>
+	<mcp:server-config name="MCP_Server" doc:name="MCP Server" doc:id="0acefb31-bfcf-44f0-a7eb-77b7d611c8f6" serverName="flight-booking-mcp-server" serverVersion="1.0.0" >
+		<mcp:streamable-http-server-connection listenerConfig="HTTP_Listener_config" responseContentType="JSON" />
+	</mcp:server-config>
+	<os:config name="ObjectStore_Config" doc:name="ObjectStore Config" doc:id="b2d00bc8-151a-4470-93c5-0bfd6b953de3" />
+	<os:object-store name="Seats_Booked_Store" doc:name="Object store" doc:id="5d7282bd-6c8f-4616-b4ee-217ff5ddcb01" persistent="false" maxEntries="-1" />
+	<os:object-store name="Bookings_Store" doc:name="Object store" doc:id="aff2a3d8-c3d3-4712-afcd-e131a86d343e" persistent="false" maxEntries="-1" />
+	<configuration-properties doc:name="Configuration properties" doc:id="420c46c6-28d6-4da7-b2c5-70e71b535efc" file="config/common-config.yaml" />
+	<os:object-store name="Rooms_Booked_Store" doc:name="Object store" doc:id="40f44c30-8b43-4854-b64e-1ac9c991d031" persistent="false" maxEntries="-1" />
+</mule>

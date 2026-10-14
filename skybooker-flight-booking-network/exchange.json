@@ -1,0 +1,53 @@
+{
+  "main": "agent-network.yaml",
+  "name": "SkyBooker Flight Booking Network",
+  "classifier": "agentic-network",
+  "organizationId": "00000000-0000-4000-8000-000000000001",
+  "descriptorVersion": "1.0.0",
+  "apiVersion": "v1",
+  "tags": [],
+  "metadata": {
+    "toolingVersion": 1,
+    "variables": {
+      "flightMcp": {
+        "url": {
+          "description": "Flight MCP server base URL",
+          "default": "https://mock.example.com/flight-booking-mcp/",
+          "secret": false
+        }
+      },
+      "openai": {
+        "apiKey": {
+          "description": "OpenAI API key",
+          "default": "",
+          "secret": true
+        }
+      },
+      "flightAgent": {
+        "url": {
+          "description": "Flight Agent A2A endpoint",
+          "default": "https://mock.example.com/agent-gateway/skybooker/",
+          "secret": false
+        }
+      },
+      "hotelAgent": {
+        "url": {
+          "description": "Hotel Agent A2A endpoint",
+          "default": "https://mock.example.com/agent-gateway/hotel_agent/",
+          "secret": false
+        }
+      },
+      "policyAgent": {
+        "url": {
+          "description": "Policy Agent A2A endpoint",
+          "default": "https://mock.example.com/agent-gateway/policy_agent/",
+          "secret": false
+        }
+      }
+    }
+  },
+  "dependencies": [],
+  "groupId": "00000000-0000-4000-8000-000000000001",
+  "assetId": "skybooker-flight-booking-network",
+  "version": "0.0.0"
+}

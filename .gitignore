@@ -1,0 +1,19 @@
+# Build output
+**/target/
+**/.mule/
+
+# IDE / local tooling
+**/.classpath
+**/.project
+**/.settings/
+**/.vscode/
+**/.designer.json
+**/.exchange.xml
+**/.exchange_modules_tmp
+**/.tmp
+**/.apivcs
+
+# Secrets (never commit)
+**/.env
+**/.env.*
+**/credentials.json

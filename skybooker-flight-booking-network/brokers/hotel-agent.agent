@@ -1,0 +1,68 @@
+# @dialect: AGENTFABRIC=1.2
+system:
+  instructions: "You are the Hotel Agent, a specialist in hotel search and booking."
+config:
+  agent_name: "hotel_agent"
+  label: "Hotel Agent"
+  default_llm: @llm.openai_main
+llm:
+  openai_main:
+    target: "llm://openai_connection"
+    kind: "OpenAI"
+    model: "gpt-5-mini"
+actions:
+  search_hotels:
+    target: "mcp://flight_mcp_connection"
+    kind: "mcp:tool"
+    tool_name: "search_hotels"
+    inputs:
+      city: string
+      checkIn: string
+      nights: string
+  book_hotel:
+    target: "mcp://flight_mcp_connection"
+    kind: "mcp:tool"
+    tool_name: "book_hotel"
+    inputs:
+      hotelId: string
+      guestName: string
+      checkIn: string
+      nights: string
+
+trigger hotelTrigger:
+  kind: "a2a"
+  target: "brokers://hotel_agent/a2a"
+  on_message: ->
+    transition to @orchestrator.hotelSpecialist
+
+orchestrator hotelSpecialist:
+  description: "Finds and books hotels on request from another agent."
+  label: "hotelSpecialist"
+  system:
+      instructions: |
+        You are called by another agent, never by a human. Do the work in one pass and never ask questions.
+        If required details are missing, say exactly which ones in your reply.
+        To search: call search_hotels, then list up to 3 options (hotelId, name, stars, nightly rate, total).
+        To book: only when the message gives an explicit hotelId and guest name and asks you to book. Call book_hotel and return the bookingId.
+        Never invent hotels. Report tool errors verbatim.
+  reasoning:
+    instructions: ->
+      | {!@request.payload.message.parts[0].text}
+    actions:
+      search_hotels: @actions.search_hotels
+      book_hotels: @actions.book_hotel
+    max_number_of_loops: 10
+    max_consecutive_errors: 3
+    task_timeout_secs: 120
+    outputs:
+      properties:
+        summary:
+          type: "string"
+          description: "Plain-text result for the requesting agent"
+  on_exit: ->
+    transition to @echo.hotelReply
+
+echo hotelReply:
+  kind: "a2a:status_update_event"
+  state: "TASK_STATE_COMPLETED"
+  message: a2a.message({messageId: uuid(), parts: [a2a.textPart(@orchestrator.hotelSpecialist.output.summary)]})

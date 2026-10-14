@@ -1,0 +1,51 @@
+# @dialect: AGENTFABRIC=1.2
+system:
+  instructions: "You are the Policy Agent, a specialist in handling policy checks."
+config:
+  agent_name: "policy_agent"
+  label: "Policy Agent"
+  default_llm: @llm.openai_main
+llm:
+  openai_main:
+    target: "llm://openai_connection"
+    kind: "OpenAI"
+    model: "gpt-5-mini"
+actions:
+  get_travel_policy:
+    target: "mcp://flight_mcp_connection"
+    kind: "mcp:tool"
+    tool_name: "get_travel_policy"
+
+trigger hotelTrigger:
+  kind: "a2a"
+  target: "brokers://policy_agent/a2a"
+  on_message: ->
+    transition to @orchestrator.policySpecialist
+
+orchestrator policySpecialist:
+  description: "Compared itenary to the policy which was booked from another agent."
+  label: "policySpecialist"
+  system:
+      instructions: |
+        Call get_travel_policy. Compare the itinerary in the message (flight fares, hotel nightly rate, trip total) to the policy. 
+        Begin your summary with exactly one of APPROVED, NEEDS_CHANGES, NEEDS_APPROVAL, then give the reasons with the numbers involved.
+  reasoning:
+    instructions: ->
+      | {!@request.payload.message.parts[0].text}
+    actions:
+      get_travel_policy: @actions.get_travel_policy
+    max_number_of_loops: 10
+    max_consecutive_errors: 3
+    task_timeout_secs: 120
+    outputs:
+      properties:
+        summary:
+          type: "string"
+          description: "Plain-text result for the requesting agent"
+  on_exit: ->
+    transition to @echo.policyReply
+
+echo policyReply:
+  kind: "a2a:status_update_event"
+  state: "TASK_STATE_COMPLETED"
+  message: a2a.message({messageId: uuid(), parts: [a2a.textPart(@orchestrator.policySpecialist.output.summary)]})

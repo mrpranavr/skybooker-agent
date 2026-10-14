@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_cf0c50de_6793_4178_95bc_837d8d8e8241_Output_Payload = Array<{|  hotelId: String,   name: String,   city: String,   stars: Number,   nightlyRate: Number,   roomsAvailable: Number|}>
+

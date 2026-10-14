@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_cf0c50de_6793_4178_95bc_837d8d8e8241_Output_Variables_searchParams = { _?: Any }
+

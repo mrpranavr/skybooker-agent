@@ -1,0 +1,109 @@
+agentNetwork: 2.0.0
+info:
+  label: Travel Concierge Network
+  version: v1
+registry:
+  mcps:
+    flightMcp:
+      info:
+        label: Travel Data & Booking MCP Server
+      metadata:
+        transport:
+          kind: streamableHttp
+          path: /mcp
+  llms:
+    chatGPT:
+      info:
+        label: OpenAI ChatGPT LLM
+        description: OpenAI LLM Provider
+      metadata:
+        platform: OpenAI
+  agents:
+    flight-agent:
+      info: {label: Flight Agent }
+      metadata:
+        platform: Mulesoft
+        interfaces:
+          a2a:
+            card:
+              name: Flight Agent
+              description: Searches and books flights between airports on a given date.
+              version: "1.0.0"
+              capabilities: {}
+              defaultInputModes: [text/plain]
+              defaultOutputModes: [text/plain]
+              supportedInterfaces:
+                - {url: "https://mock.example.com/agent-gateway/skybooker/", protocolBinding: JSONRPC, protocolVersion: "1.0"}
+              skills:
+                - {id: flights, name: Flights, description: "Find flight options (needs origin, destination, date) and book a flight (needs flightId and passenger name)."}
+    hotel-agent:
+      info: { label: Hotel Agent }
+      metadata:
+        platform: MuleSoft
+        interfaces:
+          a2a:
+            card:
+              name: Hotel Agent
+              description: Searches and books hotels in a city for given dates.
+              version: "1.0.0"
+              capabilities: {}
+              defaultInputModes: [text/plain]
+              defaultOutputModes: [text/plain]
+              supportedInterfaces:
+                - { url: "https://mock.example.com/agent-gateway/hotel_agent/", protocolBinding: JSONRPC, protocolVersion: "1.0" }
+              skills:
+                - { id: hotels, name: Hotels, description: "Find hotel options (needs city, check-in date, nights) and book one (needs hotelId and guest name)." }
+    policy-agent:
+      info: { label: Travel Policy Agent }
+      metadata:
+        platform: MuleSoft
+        interfaces:
+          a2a:
+            card:
+              name: Travel Policy Agent
+              description: Reviews a proposed itinerary against company travel policy.
+              version: "1.0.0"
+              capabilities: {}
+              defaultInputModes: [text/plain]
+              defaultOutputModes: [text/plain]
+              supportedInterfaces:
+                - { url: "https://mock.example.com/agent-gateway/policy_agent/", protocolBinding: JSONRPC, protocolVersion: "1.0" }
+              skills:
+                - { id: policy-review, name: Policy review, description: "Given flight fares, hotel rates and the trip total, returns APPROVED, NEEDS_CHANGES or NEEDS_APPROVAL with reasons." }
+context:
+  connections:
+    flight_mcp_connection:
+      kind: mcp
+      ref:
+        name: flightMcp
+      url: ${flightMcp.url}
+    openai_connection:
+      kind: llm
+      ref:
+        name: chatGPT
+      url: https://mock.example.com/openai/v1
+      authentication:
+        kind: apiKey
+        apiKey: ${openai.apiKey}
+    flight_agent_conn: { kind: a2a, ref: { name: flight-agent }, url: "${flightAgent.url}" }
+    hotel_agent_conn:  { kind: a2a, ref: { name: hotel-agent },  url: "${hotelAgent.url}" }
+    policy_agent_conn: { kind: a2a, ref: { name: policy-agent }, url: "${policyAgent.url}" }
+
+brokers:
+  skybooker:
+    kind: AgentScript
+    implementation: ./brokers/skybooker.agent
+    interfaces: { a2a: { card: { name: Flight Agent, description: Flight specialist., version: "1.0.0" } } }
+  hotel_agent:
+    kind: AgentScript
+    implementation: ./brokers/hotel-agent.agent
+    interfaces: { a2a: { card: { name: Hotel Agent, description: Hotel specialist., version: "1.0.0" } } }
+  policy_agent:
+    kind: AgentScript
+    implementation: ./brokers/policy-agent.agent
+    interfaces: { a2a: { card: { name: Travel Policy Agent, description: Policy reviewer., version: "1.0.0" } } }
+  travel_concierge:
+    kind: AgentScript
+    implementation: ./brokers/travel-concierge.agent
+    interfaces: { a2a: { card: { name: Travel Concierge, description: Plans and books business trips by coordinating specialist agents., version: "1.0.0" } } }
+          
